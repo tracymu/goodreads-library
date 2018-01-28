@@ -1,30 +1,45 @@
-require 'net/http'
-# require 'wombat'
+require 'pincers'
+
+
 
 class Library
   def self.search
+    library_list = {}
+
     list = GoodreadsAccount.want_to_read_list
 
-    title = list.first
-    # list.each do |title|
-      # uri = URI.parse("/montage/stanton/All.aspx?≈" + { keyword: title.gsub!(' ', '+') }.to_query)
-    # end
+    list.each do |title|
+      url = "https://www.aurorashore.com.au/montage/stanton/All.aspx?keyword=" + title.gsub(' ', '+').gsub('(','').gsub(')','')
+      Pincers.for_webdriver :chrome do |pincers|
+        pincers.goto url
+        sleep(4)
 
+        no_results_found = pincers.search(".content_wrapper:contains('No results found')")
 
-    # Wombat.crawl do
-    #   debugger
-    #   base_url "https://www.aurorashore.com.au"
-    #   path "/montage/stanton/All.aspx?keyword=#{title.gsub!(' ', '+')}"
+        puts "........................................"
+        puts "For search on '#{title}'"
+        if no_results_found.count > 1 # because it searches in books and in audio or something
+          puts "No results found"
+        else
+          found_title = pincers.search(".large-5.main_col").first.search(".alt_title").text
+          availability = pincers.search(".large-5.main_col").first.search(".alt_sec").text
+          puts "Found '#{found_title}'"
+          puts availability
 
-    #   book_list css: "#slot-1"
+          if availability.present? && availability != "0 Items available."
+            library_list[found_title] = availability
+          end
+        end
+      end
+    end
 
-    #   book_headings css: "h2"
-    #   debugger
-    # end
-    
-    debugger
-    doc = Nokogiri::HTML(open("https://www.aurorashore.com.au/montage/stanton/All.aspx?keyword=Big+Magic:+Creative+Living+Beyond+Fear", :ssl_verify_mode => OpenSSL::SSL::VERIFY_NONE))
-
+    puts "LIST OF FOUND BOOKS"
+    library_list.each do |title, location|
+      puts title
+      puts location
+      puts "......................."
+    end
   end
 
 end
+
